@@ -48,7 +48,7 @@ Response _echoHandler(Request request) {
   return Response.ok('$message\n');
 }
 
-Future<Response> _submitHandler(Request req) async{
+Future<Response> _submitHandler(Request req) async {
   try {
     // Đọc payload từ request
     final payload = await req.readAsString();
@@ -60,9 +60,9 @@ Future<Response> _submitHandler(Request req) async{
     final name = data['name'] as String?;
 
     //Kiểm tra nếu 'name' hợp lệ
-    if(name!=null && name.isNotEmpty){
+    if (name != null && name.isNotEmpty) {
       // Tạo phản hồi chào mừng
-      final response = {'message': 'Chào mừng $name'}; 
+      final response = {'message': 'Chào mừng $name'};
 
       // Trả về phản hồi với StatusCode 200 và nội dung JSON
       return Response.ok(
@@ -71,7 +71,7 @@ Future<Response> _submitHandler(Request req) async{
       );
     } else {
       // Tạo phản hồi cung cấp tên
-       final response = {'message': 'Server không nhận được tên của bạn.'}; 
+      final response = {'message': 'Server không nhận được tên của bạn.'};
 
       // Trả về phản hồi với StatusCode 400 và nội dung JSON
       return Response.badRequest(
@@ -88,21 +88,46 @@ Future<Response> _submitHandler(Request req) async{
       body: json.encode(response),
       headers: _headers,
     );
-
-    }
   }
-
+}
 
 void main(List<String> args) async {
-  // Use any available host or container IP (usually `0.0.0.0`).
+  // Lắng nghe trên tất cả các địa chỉ IPv4
   final ip = InternetAddress.anyIPv4;
 
-  // Configure a pipeline that logs requests.
-  final handler =
-      Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
+  final corsHeader = createMiddleware(
+    requestHandler: (req) {
+      if (req.method == 'OPTIONS') {
+        return Response.ok('', headers: {
+          // Cho phép mọi nguồn truy cập (trong môi trường dev). Trong môi trường production chúng ta nên thay * bằng domain cụ thể.
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        });
+      }
+      return null; // Tiếp tục xử lý các yêu cầu khác
+    },
+    responseHandler: (res) {
+      return res.change(headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      });
+    },
+  );
 
-  // For running in containers, we respect the PORT environment variable.
+  // Cấu hình một pipeline để logs các requests và middleware
+  final handler = Pipeline()
+      .addMiddleware(corsHeader) // Thêm middleware xử lý CORS
+      .addMiddleware(logRequests())
+      .addHandler(_router.call);
+
+  // Để chạy trong các container, chúng ta sẽ sử dụng biến môi trường PORT.
+  // Nếu biến môi trường không được thiết lập nó sẽ sử dụng giá trị từ biến
+  // môi trường này; nếu không, nó sử dụng giá trị mặc định là 8080.
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
+
+  // Khởi chạy server tại địa chỉ và cổng chỉ định
   final server = await serve(handler, ip, port);
-  print('Server listening on port ${server.port}');
+  print('Server đang chạy tại http://${server.address.host}:${server.port}');
 }
