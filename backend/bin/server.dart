@@ -58,11 +58,12 @@ Future<Response> _submitHandler(Request req) async {
 
     // Lấy giá trị 'name' từ data, ép kiểu về String? nếu có
     final name = data['name'] as String?;
+    final age = data['age'] as String?;
 
     //Kiểm tra nếu 'name' hợp lệ
-    if (name != null && name.isNotEmpty) {
+    if (name != null && name.isNotEmpty && age != null && age.isNotEmpty) {
       // Tạo phản hồi chào mừng
-      final response = {'message': 'Chào mừng $name'};
+      final response = {'message': 'Chào mừng $name, $age tuổi ^.^'};
 
       // Trả về phản hồi với StatusCode 200 và nội dung JSON
       return Response.ok(
@@ -71,7 +72,7 @@ Future<Response> _submitHandler(Request req) async {
       );
     } else {
       // Tạo phản hồi cung cấp tên
-      final response = {'message': 'Server không nhận được tên của bạn.'};
+      final response = {'message': 'Server không nhận được tên và tuổi của bạn.'};
 
       // Trả về phản hồi với StatusCode 400 và nội dung JSON
       return Response.badRequest(

@@ -34,17 +34,20 @@ class MyHomePage extends StatefulWidget {
 /// Lớp state cho MyHomePage
 class _MyHomePageState extends State<MyHomePage> {
   /// Controller để lấy dữ liệu từ Widget TextField
-  final controller = TextEditingController();
+  final nameController = TextEditingController();
+  final ageController = TextEditingController();
 
   /// Biến để lưu thông điệp phản hồi từ server
   String responseMessage = '';
 
   /// Hàm để gửi tên tới server
-  Future<void> sendName() async {
+  Future<void> sendData() async {
     // Lấy tên từ TextField
-    final name = controller.text;
+    final name = nameController.text;
+    final age = ageController.text;
     // Sau khi lấy được tên thì xóa nội dung trong controller
-    controller.clear();
+    nameController.clear();
+    ageController.clear();
 
     //Endpoint submit của server
     final url = Uri.parse('http://localhost:8080/api/v1/submit');
@@ -54,7 +57,7 @@ class _MyHomePageState extends State<MyHomePage> {
           .post(
             url,
             headers: {'Content-Type': 'application/json'},
-            body: json.encode({'name': name}),
+            body: json.encode({'name': name, 'age': age}),
           )
           .timeout(const Duration(seconds: 10));
       // Kiểm tra phản hồi có nội dung
@@ -89,12 +92,18 @@ class _MyHomePageState extends State<MyHomePage> {
         child: Column(
           children: [
             TextField(
-              controller: controller,
+              controller: nameController,
               decoration: InputDecoration(labelText: 'Tên'),
             ),
             SizedBox(height: 20),
+            TextField(
+              controller: ageController,
+              keyboardType: TextInputType.number, // Định dạng cho nhập số
+              decoration: InputDecoration(labelText: 'Tuổi'),
+            ),
+            SizedBox(height: 20),
             FilledButton(
-              onPressed: sendName,
+              onPressed: sendData,
               child: Text('Gửi'),
             ),
             // Hiển thị thông điệp phản hồi từ server
