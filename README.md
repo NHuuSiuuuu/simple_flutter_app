@@ -58,7 +58,8 @@ dart create -t server-shelf . --force
 ```bash
     flutter create -e .
 ```
-**Lư ý:** Lệnh trên sẽ tạo 1 dự án Flutter mới trong thư mục frontend với mẫu là `Empty Application` hay là tham số `-e` và tham số dấu `.` sẽ cho biết khởi tạo trong thư mục hiện tại là thư mục `frontend`.
+**Lưu ý:** Lệnh trên sẽ tạo 1 dự án Flutter mới trong thư mục frontend với mẫu là `Empty Application` hay là tham số `-e` và tham số dấu `.` sẽ cho biết khởi tạo trong thư mục hiện tại là thư mục `frontend`.
+
 4. Thêm thư viện `http` vào dự án frontend
 ```bash
     flutter pub add http
