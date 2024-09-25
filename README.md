@@ -175,6 +175,46 @@ Future<Response> _submitHandler(Request req) async{
 
 
 void main(List<String> args) async {
+
+  // Lắng nghe trên tất cả các địa chỉ IPv4
+  final ip = InternetAddress.anyIPv4;
+
+  final corsHeader = createMiddleware(
+    requestHandler: (req) {
+      if (req.method == 'OPTIONS') {
+        return Response.ok('', headers: {
+          // Cho phép mọi nguồn truy cập (trong môi trường dev). Trong môi trường production chúng ta nên thay * bằng domain cụ thể.
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        });
+      }
+      return null; // Tiếp tục xử lý các yêu cầu khác
+    },
+    responseHandler: (res) {
+      return res.change(headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      });
+    },
+  );
+
+  // Cấu hình một pipeline để logs các requests và middleware
+  final handler = Pipeline()
+      .addMiddleware(corsHeader) // Thêm middleware xử lý CORS
+      .addMiddleware(logRequests())
+      .addHandler(_router.call);
+
+  // Để chạy trong các container, chúng ta sẽ sử dụng biến môi trường PORT.
+  // Nếu biến môi trường không được thiết lập nó sẽ sử dụng giá trị từ biến
+  // môi trường này; nếu không, nó sử dụng giá trị mặc định là 8080.
+  final port = int.parse(Platform.environment['PORT'] ?? '8080');
+
+  // Khởi chạy server tại địa chỉ và cổng chỉ định
+  final server = await serve(handler, ip, port);
+  print('Server đang chạy tại http://${server.address.host}:${server.port}');
+
   // Use any available host or container IP (usually `0.0.0.0`).
   final ip = InternetAddress.anyIPv4;
 
@@ -186,8 +226,176 @@ void main(List<String> args) async {
   final port = int.parse(Platform.environment['PORT'] ?? '8080');
   final server = await serve(handler, ip, port);
   print('Server listening on port ${server.port}');
+
 }
 
 ```
 2. Debug backend và kiểm thử Postman
+
+
+3. Thêm middleware xử lý CORS cho backend
+- **CORS là gì?** CORS (Cross-Origin Resource Sharing) là một cơ chế bảo mật được các trình duyệt web sử dụng để ngăn chặn các trang web gửi yêu cầu đến một domain khác với domain của trang hiện tại. Điều này nhằm bảo vệ người dùng khỏi các cuộc tấn công CSRF (Cross-Site Request Forgery) và các mối đe dọa bảo mật khác.
+- **Vì sao cần thêm CORS middleware?** Khi frontend (Flutter Web) gửi yêu cầu HTTP đến backend trên một domain khác, trình duyệt web sẽ chặn yêu cầu do vi phạm chính sách cùng nguồn gốc (Same-Orgin Policy). Các yêu cầu từ Flutter Web (chạy trên localhost: 8081) đến server backend (chạy trên localhost: 8080) sẽ bị chặn nếu server không xử lý đúng các header CORS. Trình duyệt sẽ gửi một yêu cầu OPTIONS (Preflight Request) để kiểm tra xem server có cho phép không. Nếu server không phản hồi đúng, yêu cầu chính sẽ không được gửi.
+- **Giải pháp:** Thêm Middleware xử lý CORS vào server backend để xử lý các yêu cầu OPTIONS bằng cách trả về các header CORS cần thiết. Thêm các header CORS vào tất cả các phản hồi từ server để trình duyệt cho phép giao tiếp giữa frontend và backend
+- Cập nhật mã nguồn hàm main của server:
+```dart
+void main(List<String> args) async {
+  // Lắng nghe trên tất cả các địa chỉ IPv4
+  final ip = InternetAddress.anyIPv4;
+
+  final corsHeader = createMiddleware(
+    requestHandler: (req) {
+      if (req.method == 'OPTIONS') {
+        return Response.ok('', headers: {
+          // Cho phép mọi nguồn truy cập (trong môi trường dev). Trong môi trường production chúng ta nên thay * bằng domain cụ thể.
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+        });
+      }
+      return null; // Tiếp tục xử lý các yêu cầu khác
+    },
+    responseHandler: (res) {
+      return res.change(headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, HEAD',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      });
+    },
+  );
+
+  // Cấu hình một pipeline để logs các requests và middleware
+  final handler = Pipeline()
+      .addMiddleware(corsHeader) // Thêm middleware xử lý CORS
+      .addMiddleware(logRequests())
+      .addHandler(_router.call);
+
+  // Để chạy trong các container, chúng ta sẽ sử dụng biến môi trường PORT.
+  // Nếu biến môi trường không được thiết lập nó sẽ sử dụng giá trị từ biếns
+  // môi trường này; nếu không, nó sử dụng giá trị mặc định là 8080.
+  final port = int.parse(Platform.environment['PORT'] ?? '8080');
+
+  // Khởi chạy server tại địa chỉ và cổng chỉ định
+  final server = await serve(handler, ip, port);
+  print('Server đang chạy tại http://${server.address.host}:${server.port}');
+}
+
+```
+
 ### Bước 7: Phát triển frontend và tích hợp hệ thống
+1. Chỉnh sửa mã nguồn frontend
+- Mở tệp `frontend/lib/main.dart` và thay thế nội dung bằng mã sau:
+```dart
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+/// Hàm main là điểm bắt đầu của ứng dụng
+void main() {
+  runApp(const MainApp()); // Chạy ứng dụng với widget MainApp
+}
+
+/// Widget MainApp là widget gốc của ứng dụng, sử dụng một StatelessWidget
+class MainApp extends StatelessWidget {
+  const MainApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false, // Tắt biểu tượng debug ở góc phải trên
+      title: 'Ứng dụng full-stack flutter đơn giản',
+      home: MyHomePage(),
+    );
+  }
+}
+
+/// Widget MyHomePage là trang chính của ứng dụng, sử dụng StatefulWidet
+/// để quản lý trạng thái do có nội dung cần thay đổi trên trang này
+class MyHomePage extends StatefulWidget {
+  const MyHomePage({super.key});
+
+  @override
+  State<MyHomePage> createState() => _MyHomePageState();
+}
+
+/// Lớp state cho MyHomePage
+class _MyHomePageState extends State<MyHomePage> {
+  /// Controller để lấy dữ liệu từ Widget TextField
+  final controller = TextEditingController();
+
+  /// Biến để lưu thông điệp phản hồi từ server
+  String responseMessage = '';
+
+  /// Hàm để gửi tên tới server
+  Future<void> sendName() async {
+    // Lấy tên từ TextField
+    final name = controller.text;
+    // Sau khi lấy được tên thì xóa nội dung trong controller
+    controller.clear();
+
+    //Endpoint submit của server
+    final url = Uri.parse('http://localhost:8080/api/v1/submit');
+    try {
+      // Gửi yêu cầu POST tới server
+      final response = await http
+          .post(
+            url,
+            headers: {'Content-Type': 'application/json'},
+            body: json.encode({'name': name}),
+          )
+          .timeout(const Duration(seconds: 10));
+      // Kiểm tra phản hồi có nội dung
+      if (response.body.isNotEmpty) {
+        // Giải mã phản hồi từ server
+        final data = json.decode(response.body);
+
+        // Cập nhật trạng thái với thông điệp nhận được từ server
+        setState(() {
+          responseMessage = data['message'];
+        });
+      } else {
+        // Phản hồi không có nội dung
+        setState(() {
+          responseMessage = 'Không nhận được phản hồi từ server';
+        });
+      }
+    } catch (e) {
+      // Xử lý lỗi kết nối hoặc lỗi khác
+      setState(() {
+        responseMessage = 'Đã xảy ra lỗi: ${e.toString()}';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Ứng dụng full-stack flutter đơn giản')),
+      body: Padding(
+        padding: const EdgeInsets.all(18.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: controller,
+              decoration: InputDecoration(labelText: 'Tên'),
+            ),
+            SizedBox(height: 20),
+            FilledButton(
+              onPressed: sendName,
+              child: Text('Gửi'),
+            ),
+            // Hiển thị thông điệp phản hồi từ server
+            Text(
+              responseMessage,
+              style: Theme.of(context).textTheme.titleLarge,
+            )
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
+```
