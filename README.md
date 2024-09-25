@@ -175,6 +175,7 @@ Future<Response> _submitHandler(Request req) async{
 
 
 void main(List<String> args) async {
+
   // Lắng nghe trên tất cả các địa chỉ IPv4
   final ip = InternetAddress.anyIPv4;
 
@@ -213,10 +214,24 @@ void main(List<String> args) async {
   // Khởi chạy server tại địa chỉ và cổng chỉ định
   final server = await serve(handler, ip, port);
   print('Server đang chạy tại http://${server.address.host}:${server.port}');
+
+  // Use any available host or container IP (usually `0.0.0.0`).
+  final ip = InternetAddress.anyIPv4;
+
+  // Configure a pipeline that logs requests.
+  final handler =
+      Pipeline().addMiddleware(logRequests()).addHandler(_router.call);
+
+  // For running in containers, we respect the PORT environment variable.
+  final port = int.parse(Platform.environment['PORT'] ?? '8080');
+  final server = await serve(handler, ip, port);
+  print('Server listening on port ${server.port}');
+
 }
 
 ```
 2. Debug backend và kiểm thử Postman
+
 
 3. Thêm middleware xử lý CORS cho backend
 - **CORS là gì?** CORS (Cross-Origin Resource Sharing) là một cơ chế bảo mật được các trình duyệt web sử dụng để ngăn chặn các trang web gửi yêu cầu đến một domain khác với domain của trang hiện tại. Điều này nhằm bảo vệ người dùng khỏi các cuộc tấn công CSRF (Cross-Site Request Forgery) và các mối đe dọa bảo mật khác.
@@ -266,4 +281,11 @@ void main(List<String> args) async {
 }
 
 ```
+
 ### Bước 7: Phát triển frontend và tích hợp hệ thống
+1. Chỉnh sửa mã nguồn frontend
+- Mở tệp `frontend/lib/main.dart` và thay thế nội dung bằng mã sau:
+```dart
+
+
+```
